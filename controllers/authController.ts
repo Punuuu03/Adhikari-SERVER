@@ -25,7 +25,7 @@ export const signup = async (req: Request, res: Response) => {
     });
 
     // Generate token and send response
-    const token = generateToken(user._id);
+    const token = generateToken(user._id.toString()); // Convert ObjectId to string
     res.status(201).json({ user, token });
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
@@ -50,7 +50,7 @@ export const login = async (req: Request, res: Response) => {
     }
 
     // Generate token and send response
-    const token = generateToken(user._id);
+    const token = generateToken(user._id.toString()); // Convert ObjectId to string
     res.status(200).json({ user, token });
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
