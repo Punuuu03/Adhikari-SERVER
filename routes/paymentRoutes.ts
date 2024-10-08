@@ -1,8 +1,9 @@
-import { Router } from 'express';
-import { createOrder } from '../controllers/paymentController';
+import express from 'express';
+import { createPaymentIntent, verifyPin } from '../controllers/paymentController';
 
-const router = Router();
+const router = express.Router();
 
-router.post('/order', createOrder);
+router.post('/create-payment-intent', createPaymentIntent);
+router.post('/verify-pin', verifyPin);
 
 export default router;

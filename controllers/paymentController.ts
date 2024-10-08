@@ -1,19 +1,67 @@
 import { Request, Response } from 'express';
-import razorpayInstance from '../utils/razorpay'; // Razorpay instance from utility
+import Stripe from 'stripe';
+import { Payment } from '../models/Payment';
+import { v4 as uuidv4 } from 'uuid';
 
-export const createOrder = async (req: Request, res: Response) => {
-  const { amount } = req.body;
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '2024-09-30.acacia',
+});
+
+// Create a payment intent
+export const createPaymentIntent = async (req: Request, res: Response) => {
+  const { studentName, email, courseName, price } = req.body;
 
   try {
-    const options = {
-      amount: amount * 100, // Amount in paisa (smallest unit of INR)
-      currency: 'INR',
-      receipt: `receipt_${Date.now()}`,
-    };
+    const idempotencyKey = uuidv4();
 
-    const order = await razorpayInstance.orders.create(options);
-    res.status(200).json(order);
+    const paymentIntent = await stripe.paymentIntents.create(
+      {
+        amount: price * 100,
+        currency: 'inr',
+        receipt_email: email,
+        metadata: {
+          courseName,
+          studentName,
+          price,
+        },
+      },
+      { idempotencyKey }
+    );
+
+    const payment = new Payment({
+      studentName,
+      email,
+      courseName,
+      price,
+      stripePaymentId: paymentIntent.id,
+    });
+    await payment.save();
+
+    res.status(200).json({ clientSecret: paymentIntent.client_secret });
   } catch (error) {
-    res.status(500).json({ message: 'Error creating order', error });
+    console.error('Error creating payment intent', error);
+    res.status(500).json({ error: 'Failed to create payment' });
+  }
+};
+
+// Verify Bank PIN
+export const verifyPin = (req: Request, res: Response) => {
+  const { pin, studentName, courseName, price } = req.body;
+
+  // In a real scenario, you would verify this against a bank system or database
+  const validPin = '1234'; // Placeholder
+
+  if (pin === validPin) {
+    const payment = new Payment({
+      studentName,
+      courseName,
+      price,
+      stripePaymentId: 'bank_payment_' + uuidv4(), // Placeholder for bank payment ID
+    });
+    payment.save();
+
+    res.status(200).json({ success: true });
+  } else {
+    res.status(400).json({ success: false, message: 'Invalid PIN' });
   }
 };
